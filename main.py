@@ -73,6 +73,7 @@ def apply_translations(excel_file, po_file):
             # Remove the processed entry from the dictionary
             del translation_dict[PoKey]
 
+            
         # Check if the translation dictionary is empty
         if not translation_dict:
             break
