@@ -22,23 +22,33 @@ def build_translation_dict(excel_file):
 
     print("Building translation replacement associations...")
 
-    # Iterate over all worksheets and collect original and translated text pairs
-    all_texts = (
-        (original_text_cell.value, translated_text_cell.value)
-        for sheet_name in workbook.sheetnames
-        for original_text_cell, translated_text_cell in zip(
-            workbook[sheet_name]['A'], workbook[sheet_name]['C']
-        )
-        if original_text_cell.value is not None and translated_text_cell.value is not None
-    )
+    for sheet_name in workbook.sheetnames:
+        sheet = workbook[sheet_name]
 
-    # Build the translation dictionary directly from the worksheet data
-    translation_dict.update(all_texts)
+        # Get the range of msgid, msgid_plural and msgstr columns
+        msgid = sheet['A']
+        msgid_plural = sheet['B']
+        msgstr = sheet['D']
+
+        for msgid_text_cell, msgid_plural_text_cell, msgstr_text_cell in zip(msgid, msgid_plural, msgstr):
+            msgid_text = msgid_text_cell.value
+            msgid_plural_text = msgid_plural_text_cell.value
+            msgstr_text = msgstr_text_cell.value
+
+            if msgid_plural_text is None:
+                msgid_plural_text = ' '
+
+            # Skip the line if either original or translated text is empty
+            if msgid_text is None or msgstr_text is None:
+                continue
+
+            Pokey = msgid_text + ';' + msgid_plural_text
+            translation_dict[Pokey] = msgstr_text
 
     return translation_dict
 
 def apply_translations(excel_file, po_file):
-    # Build the dictionary of original text to translated text
+    # Build dictionary of original text to translated text
     translation_dict = build_translation_dict(excel_file)
 
     # Convert translation_dict to a set for faster lookups
@@ -50,19 +60,24 @@ def apply_translations(excel_file, po_file):
     print("The following IDs have corrected translations:")
 
     for entry in po:
+        if entry.msgid_plural:
+            PoKey = entry.msgid + ';' + entry.msgid_plural
+        else:
+            PoKey = entry.msgid + ';' + ' '
+
         # If a corresponding translation is found in the dictionary, replace the translation
-        if entry.msgid in translation_set:
-            print(entry.msgid)
+        if PoKey in translation_set:
+            print(PoKey)
 
             if entry.msgid_plural:
                 # For msgid_plural, replace all msgstrs
                 for idx, msgstr in enumerate(entry.msgstr_plural.values()):
-                    entry.msgstr_plural[idx] = translation_dict[entry.msgid]
+                    entry.msgstr_plural[idx] = translation_dict[PoKey]
             else:
-                entry.msgstr = translation_dict[entry.msgid]
+                entry.msgstr = translation_dict[PoKey]
 
             # Remove the processed entry from the set
-            translation_set.remove(entry.msgid)
+            translation_set.remove(PoKey)
 
         # Check if the translation set is empty
         if not translation_set:
@@ -72,7 +87,7 @@ def apply_translations(excel_file, po_file):
     po.save(po_file)
 
     # Print completion message
-    print("Translations replacement Complete.")
+    print("Completed")
 
 def remove_existing_files(po_file_path, mo_file_path):
     if os.path.exists(po_file_path):
