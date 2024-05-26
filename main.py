@@ -42,8 +42,8 @@ def build_translation_dict(excel_file):
             if msgid_text is None or msgstr_text is None:
                 continue
 
-            Pokey = msgid_text + ';' + msgid_plural_text
-            translation_dict[Pokey] = msgstr_text
+            PoKey = (msgid_text, msgid_plural_text)
+            translation_dict[PoKey] = msgstr_text
 
     return translation_dict
 
@@ -51,23 +51,17 @@ def apply_translations(excel_file, po_file):
     # Build dictionary of original text to translated text
     translation_dict = build_translation_dict(excel_file)
 
-    # Convert translation_dict to a set for faster lookups
-    translation_set = set(translation_dict.keys())
-
     # Read the .po file
     po = polib.pofile(po_file)
 
-    print("The following IDs have corrected translations:")
+    #print("The following IDs have corrected translations:")
 
     for entry in po:
-        if entry.msgid_plural:
-            PoKey = entry.msgid + ';' + entry.msgid_plural
-        else:
-            PoKey = entry.msgid + ';' + ' '
+        PoKey = (entry.msgid, entry.msgid_plural if entry.msgid_plural else ' ')
 
         # If a corresponding translation is found in the dictionary, replace the translation
-        if PoKey in translation_set:
-            print(PoKey)
+        if PoKey in translation_dict:
+            #print(PoKey)
 
             if entry.msgid_plural:
                 # For msgid_plural, replace all msgstrs
@@ -76,18 +70,18 @@ def apply_translations(excel_file, po_file):
             else:
                 entry.msgstr = translation_dict[PoKey]
 
-            # Remove the processed entry from the set
-            translation_set.remove(PoKey)
+            # Remove the processed entry from the dictionary
+            del translation_dict[PoKey]
 
-        # Check if the translation set is empty
-        if not translation_set:
+        # Check if the translation dictionary is empty
+        if not translation_dict:
             break
 
     # Save the modified .po file
     po.save(po_file)
 
     # Print completion message
-    print("Completed")
+    print("Apply translations Complete.")
 
 def remove_existing_files(po_file_path, mo_file_path):
     if os.path.exists(po_file_path):
